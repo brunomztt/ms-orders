@@ -1,0 +1,81 @@
+name: kitoca
+services:
+  orders:
+    build: .
+    ports: ["127.0.0.1:8081:8080"]
+    environment:
+      ConnectionStrings__Orders: Server=orders-db;Database=orders_db;User ID=orders;Password=orders_local;Connection Timeout=3;Default Command Timeout=15
+      Catalog__BaseUrl: http://catalog:8080
+      RabbitMQ__Url: amqp://kitoca:kitoca_local@rabbitmq:5672/
+    depends_on:
+      orders-db: {condition: service_healthy}
+      catalog: {condition: service_started}
+      rabbitmq: {condition: service_healthy}
+    restart: unless-stopped
+  orders-db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: orders_db
+      MYSQL_USER: orders
+      MYSQL_PASSWORD: orders_local
+      MYSQL_ROOT_PASSWORD: root_local
+    volumes: ["orders-data:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql -h 127.0.0.1 -u$$MYSQL_USER -D $$MYSQL_DATABASE -e 'SELECT 1'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  catalog:
+    build: ../ms-catalog-stock
+    ports: ["127.0.0.1:8080:8080"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://catalog:catalog_local@catalog-db:5432/catalog_db
+      RABBITMQ_URL: amqp://kitoca:kitoca_local@rabbitmq:5672/
+    depends_on:
+      catalog-db: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}
+    restart: unless-stopped
+  catalog-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: catalog_db
+      POSTGRES_USER: catalog
+      POSTGRES_PASSWORD: catalog_local
+    volumes: ["catalog-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog -d catalog_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  notifications:
+    build: ../ms-notifications-cloud/ms-notifications
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      MONGO_URI: mongodb://notifications-db:27017/notifications_db
+      RABBITMQ_URL: amqp://kitoca:kitoca_local@rabbitmq:5672/
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      notifications-db: {condition: service_started}
+      rabbitmq: {condition: service_healthy}
+    restart: unless-stopped
+  notifications-db:
+    image: mongo:7
+    volumes: ["notifications-data:/data/db"]
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: kitoca
+      RABBITMQ_DEFAULT_PASS: kitoca_local
+    ports: ["127.0.0.1:15672:15672"]
+    volumes: ["rabbitmq-data:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+volumes:
+  orders-data:
+  catalog-data:
+  notifications-data:
+  rabbitmq-data:

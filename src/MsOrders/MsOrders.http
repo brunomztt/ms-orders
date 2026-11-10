@@ -1,0 +1,43 @@
+@orders = http://localhost:8081
+@catalog = http://localhost:8080
+@notifications = http://localhost:8000
+@orderId = COLE_O_ID_DO_PEDIDO
+
+### Criar produto (copie o id retornado para o pedido)
+POST {{catalog}}/api/catalog/products
+Content-Type: application/json
+
+{"sku":"KITOCA-001","name":"Ração para furão","price":"29.90","available_quantity":10}
+
+### Criar rascunho: retorna 201 e Location
+POST {{orders}}/api/orders
+Content-Type: application/json
+
+{"userId":"tutor-01","items":[{"productId":1,"quantity":2}]}
+
+### Listar
+GET {{orders}}/api/orders
+
+### Consultar
+GET {{orders}}/api/orders/{{orderId}}
+
+### Atualizar somente DRAFT
+PUT {{orders}}/api/orders/{{orderId}}
+Content-Type: application/json
+
+{"userId":"tutor-01","items":[{"productId":1,"quantity":1}]}
+
+### Confirmar: retorna 202 enquanto PENDING; consultar depois
+POST {{orders}}/api/orders/{{orderId}}/confirm
+
+### Histórico assíncrono
+GET {{notifications}}/api/notifications/user/tutor-01
+
+### Excluir somente DRAFT: retorna 204
+DELETE {{orders}}/api/orders/{{orderId}}
+
+### Banco e identificação do container
+GET {{orders}}/health
+
+### Balanceamento no EKS via Ingress
+GET {{orders}}/api/orders/instance

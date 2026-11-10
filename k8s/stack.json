@@ -1,0 +1,836 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "orders-data",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "storageClassName": "gp3",
+        "resources": {
+          "requests": {
+            "storage": "2Gi"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "catalog-data",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "storageClassName": "gp3",
+        "resources": {
+          "requests": {
+            "storage": "2Gi"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "notifications-data",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "storageClassName": "gp3",
+        "resources": {
+          "requests": {
+            "storage": "2Gi"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "rabbitmq-data",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "storageClassName": "gp3",
+        "resources": {
+          "requests": {
+            "storage": "1Gi"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "ms-orders-db",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app": "ms-orders-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ms-orders-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "ms-orders-db",
+                "image": "mysql:8.4",
+                "ports": [
+                  {
+                    "containerPort": 3306
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "MYSQL_DATABASE",
+                    "value": "orders_db"
+                  },
+                  {
+                    "name": "MYSQL_USER",
+                    "value": "orders"
+                  },
+                  {
+                    "name": "MYSQL_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "kitoca-runtime",
+                        "key": "orders-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "MYSQL_ROOT_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "kitoca-runtime",
+                        "key": "mysql-root-password"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "384Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "768Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/mysql"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "persistentVolumeClaim": {
+                  "claimName": "orders-data"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "ms-orders-db-service",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "selector": {
+          "app": "ms-orders-db"
+        },
+        "ports": [
+          {
+            "port": 3306,
+            "targetPort": 3306
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "ms-catalog-db",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app": "ms-catalog-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ms-catalog-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "ms-catalog-db",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "catalog_db"
+                  },
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "catalog"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "kitoca-runtime",
+                        "key": "catalog-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "PGDATA",
+                    "value": "/var/lib/postgresql/data/pgdata"
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "256Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "512Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "persistentVolumeClaim": {
+                  "claimName": "catalog-data"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "ms-catalog-db-service",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "selector": {
+          "app": "ms-catalog-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "ms-notifications-db",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app": "ms-notifications-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ms-notifications-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "ms-notifications-db",
+                "image": "mongo:7",
+                "ports": [
+                  {
+                    "containerPort": 27017
+                  }
+                ],
+                "env": [],
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "256Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "512Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/data/db"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "persistentVolumeClaim": {
+                  "claimName": "notifications-data"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "mongo-notification-service",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "selector": {
+          "app": "ms-notifications-db"
+        },
+        "ports": [
+          {
+            "port": 27017,
+            "targetPort": 27017
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "rabbitmq",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app": "rabbitmq"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "rabbitmq"
+            }
+          },
+          "spec": {
+            "hostname": "rabbitmq",
+            "containers": [
+              {
+                "name": "rabbitmq",
+                "image": "rabbitmq:3.13-management-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5672
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "RABBITMQ_DEFAULT_USER",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "kitoca-runtime",
+                        "key": "rabbitmq-user"
+                      }
+                    }
+                  },
+                  {
+                    "name": "RABBITMQ_DEFAULT_PASS",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "kitoca-runtime",
+                        "key": "rabbitmq-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "RABBITMQ_NODENAME",
+                    "value": "rabbit@rabbitmq"
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "256Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "512Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/rabbitmq"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "persistentVolumeClaim": {
+                  "claimName": "rabbitmq-data"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "rabbitmq-service",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "selector": {
+          "app": "rabbitmq"
+        },
+        "ports": [
+          {
+            "port": 5672,
+            "targetPort": 5672
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "ms-orders",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "replicas": 3,
+        "selector": {
+          "matchLabels": {
+            "app": "ms-orders"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ms-orders"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "ms-orders",
+                "image": "kitoca-orders:local",
+                "ports": [
+                  {
+                    "containerPort": 8080
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "ConnectionStrings__Orders",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "kitoca-runtime",
+                        "key": "orders-connection"
+                      }
+                    }
+                  },
+                  {
+                    "name": "Catalog__BaseUrl",
+                    "value": "http://ms-catalog-service:8080"
+                  },
+                  {
+                    "name": "RabbitMQ__Url",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "kitoca-runtime",
+                        "key": "rabbitmq-url"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "128Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "256Mi"
+                  }
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 10,
+                  "periodSeconds": 10,
+                  "timeoutSeconds": 4
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/health/live",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 30,
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 4
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "ms-orders-service",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "selector": {
+          "app": "ms-orders"
+        },
+        "ports": [
+          {
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "ms-catalog",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "ms-catalog"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ms-catalog"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "ms-catalog",
+                "image": "kitoca-catalog:local",
+                "ports": [
+                  {
+                    "containerPort": 8080
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "DATABASE_URL",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "kitoca-runtime",
+                        "key": "catalog-connection"
+                      }
+                    }
+                  },
+                  {
+                    "name": "RABBITMQ_URL",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "kitoca-runtime",
+                        "key": "rabbitmq-url"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "128Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "256Mi"
+                  }
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 10,
+                  "periodSeconds": 10,
+                  "timeoutSeconds": 4
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "ms-catalog-service",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "selector": {
+          "app": "ms-catalog"
+        },
+        "ports": [
+          {
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "ms-notifications",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "ms-notifications"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ms-notifications"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "ms-notifications",
+                "image": "kitoca-notifications:local",
+                "ports": [
+                  {
+                    "containerPort": 8000
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "MONGO_URI",
+                    "value": "mongodb://mongo-notification-service:27017/notifications_db"
+                  },
+                  {
+                    "name": "RABBITMQ_URL",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "kitoca-runtime",
+                        "key": "rabbitmq-url"
+                      }
+                    }
+                  },
+                  {
+                    "name": "RABBITMQ_HOST",
+                    "value": "rabbitmq-service"
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "128Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "256Mi"
+                  }
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8000
+                  },
+                  "initialDelaySeconds": 10,
+                  "periodSeconds": 10,
+                  "timeoutSeconds": 4
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "ms-notifications-service",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "selector": {
+          "app": "ms-notifications"
+        },
+        "ports": [
+          {
+            "port": 80,
+            "targetPort": 8000
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "Ingress",
+      "metadata": {
+        "name": "kitoca",
+        "namespace": "kitoca"
+      },
+      "spec": {
+        "ingressClassName": "nginx",
+        "rules": [
+          {
+            "http": {
+              "paths": [
+                {
+                  "path": "/api/orders",
+                  "pathType": "Prefix",
+                  "backend": {
+                    "service": {
+                      "name": "ms-orders-service",
+                      "port": {
+                        "number": 8080
+                      }
+                    }
+                  }
+                },
+                {
+                  "path": "/api/catalog",
+                  "pathType": "Prefix",
+                  "backend": {
+                    "service": {
+                      "name": "ms-catalog-service",
+                      "port": {
+                        "number": 8080
+                      }
+                    }
+                  }
+                },
+                {
+                  "path": "/api/notifications",
+                  "pathType": "Prefix",
+                  "backend": {
+                    "service": {
+                      "name": "ms-notifications-service",
+                      "port": {
+                        "number": 80
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
